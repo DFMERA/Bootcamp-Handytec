@@ -1,3 +1,0 @@
-dfmerasqldev.database.windows.net
-bootcampml
-Handytec1.
