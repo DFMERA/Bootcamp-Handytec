@@ -1,0 +1,22 @@
+﻿@model WebApplicationML4.Models.ImageClassification
+
+@{
+    ViewData["Title"] = "Clasificar Imagen";
+}
+
+<h1>Clasificar Imagen</h1>
+
+<div class="col-md-4">
+    <form asp-action="Predict">
+        <div class="form-group">
+            <label asp-for="ImageData.ImageSource" class="control-label"></label>
+            <input asp-for="ImageData.ImageSource" class="form-control" />
+            <span asp-validation-for="ImageData.ImageSource" class="text-danger"></span>
+        </div>
+        <div class="form-group">
+            <label asp-for="ImageData.Label" class="control-label"></label>
+            <input asp-for="ImageData.Label" class="form-control" />
+            <span asp-validation-for="ImageData.Label" class="text-danger"></span>
+        </div>
+    </form>
+</div>
