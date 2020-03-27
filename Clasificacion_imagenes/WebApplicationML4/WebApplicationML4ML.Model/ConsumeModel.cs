@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.ML;
@@ -20,13 +21,42 @@ namespace WebApplicationML4ML.Model
             MLContext mlContext = new MLContext();
 
             // Load model & create prediction engine
-            string modelPath = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\WebApplicationML4ML\WebApplicationML4ML.Model\MLModel.zip";
+            string modelPath = GetAbsolutePath("MLModel.zip");
+            ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
+
+            var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
+
+            // Use model to make prediction on input data
+            ModelOutput result = predEngine.Predict(input);
+            return result;
+        }
+
+        public static ModelOutput PredictPool(ModelInput input)
+        {
+
+            // Create new MLContext
+            MLContext mlContext = new MLContext();
+
+            // Load model & create prediction engine
+            string modelPath = GetAbsolutePath("MLModel.zip");
             ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
 
             // Use model to make prediction on input data
             ModelOutput result = predEngine.Predict(input);
             return result;
+        }
+
+        public static string GetAbsolutePath(string relativePath)
+        {
+            FileInfo _dataRoot = new FileInfo(typeof(ConsumeModel).Assembly.Location);
+            string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+
+            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+
+            return fullPath;
         }
     }
 }

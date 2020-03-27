@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using WebApplicationML4ML.Model;
+using Microsoft.Extensions.ML;
+using Tensorflow.Keras.Engine;
 
 namespace WebApplicationML4
 {
@@ -23,6 +26,9 @@ namespace WebApplicationML4
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+
+            var pathModel = ConsumeModel.GetAbsolutePath("MLModel.zip");
+            services.AddPredictionEnginePool<ModelInput, ModelOutput>().FromFile(pathModel);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

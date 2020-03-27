@@ -7,11 +7,19 @@ using WebApplicationML4ML.Model;
 using WebApplicationML4.Models;
 using System.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.ML;
 
 namespace WebApplicationML4.Controllers
 {
     public class ImageClassificationController : Controller
     {
+        private readonly PredictionEnginePool<ModelInput, ModelOutput> _predictionEnginePool;
+
+        public ImageClassificationController(PredictionEnginePool<ModelInput, ModelOutput> predictionEnginePool)
+        {
+            _predictionEnginePool = predictionEnginePool;
+        }
+
         public IActionResult Index()
         {
             return View();
@@ -33,25 +41,24 @@ namespace WebApplicationML4.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ClasificarImagen(IFormFile imgFile)
+        public async Task<IActionResult> ClasificarImagen(ImageClassification imageClassification)
         {
             string pathPrediction = @"..\..\..\..\..\data\Predict\";
-            string pathImgPredict = Path.Combine(pathPrediction, imgFile.FileName);
+            string pathImgPredict = Path.Combine(pathPrediction, imageClassification.ImgFile.FileName);
+            pathImgPredict = ConsumeModel.GetAbsolutePath(pathImgPredict);
 
             using (var stream  =System.IO.File.Create(pathImgPredict))
             {
-               await imgFile.CopyToAsync(stream);
+               await imageClassification.ImgFile.CopyToAsync(stream);
             }
 
-            ImageClassification imageClassification = new ImageClassification()
+            imageClassification.ImageData = new ModelInput()
             {
-                ImageData = new ModelInput()
-                {
-                    ImageSource = pathImgPredict,
-                    Label = "Desconocido",
-                },
-                ImagePrediction = new ModelOutput()
+                ImageSource = pathImgPredict,
+                Label = "Desconocido",
             };
+            imageClassification.ImagePrediction = new ModelOutput();
+            
 
             imageClassification.ImagePrediction = QueTipoDeProductoEs(imageClassification.ImageData);
 
@@ -60,7 +67,9 @@ namespace WebApplicationML4.Controllers
 
         private ModelOutput QueTipoDeProductoEs(ModelInput modelInput)
         {
-            return ConsumeModel.Predict(modelInput);
+            //return ConsumeModel.Predict(modelInput);
+
+            return _predictionEnginePool.Predict(modelInput);
         }
 
         private IEnumerable<ModelInput> LoadImagesFromDirectory(string folder, bool useFolderNameasLabel = true)
