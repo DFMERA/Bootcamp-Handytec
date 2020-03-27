@@ -1,0 +1,43 @@
+<div class="col-md-4">
+    <form asp-action="ClasificarImagen" enctype="multipart/form-data" method="post">
+        <div class="form-group">
+            <label asp-for="ImageData.ImageSource" class="control-label"></label>
+            <input asp-for="ImageData.ImageSource" class="form-control" />
+            <span asp-validation-for="ImageData.ImageSource" class="text-danger"></span>
+        </div>
+        <div class="form-group">
+            <label asp-for="ImageData.Label" class="control-label"></label>
+            <input asp-for="ImageData.Label" class="form-control" />
+            <span asp-validation-for="ImageData.Label" class="text-danger"></span>
+        </div>
+        <h1 class="display-4">Seleccionar Imagen</h1>
+        <input type="file" asp-for="ImgFile" />
+        <div class="form-group">
+            <input type="submit" value="Predecir" />
+        </div>
+    </form>
+</div>
+<div class="col-md-4">
+    <div class="form-group">
+        <label asp-for="ImagePrediction.Prediction" class="control-label"></label>
+        <input asp-for="ImagePrediction.Prediction" class="form-control" readonly="readonly" />
+    </div>
+</div>
+
+
+
+
+
+public static string GetAbsolutePath(string relativePath)
+        {
+            FileInfo _dataRoot = new FileInfo(typeof(ConsumeModel).Assembly.Location);
+            string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+
+            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+
+            return fullPath;
+        }
+
+
