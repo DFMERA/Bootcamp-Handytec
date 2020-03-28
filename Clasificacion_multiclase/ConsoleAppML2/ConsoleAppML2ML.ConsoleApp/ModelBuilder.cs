@@ -8,16 +8,20 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using ConsoleAppML2ML.Model;
 using Microsoft.ML.Trainers.LightGbm;
+using Microsoft.ML.AutoML;
 
 namespace ConsoleAppML2ML.ConsoleApp
 {
     public static class ModelBuilder
     {
-        private static string TRAIN_DATA_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\dce07e88-0d79-4962-9f6e-763543cc4d28.tsv";
-        private static string MODEL_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\ConsoleAppML2ML\ConsoleAppML2ML.Model\MLModel.zip";
+        private static string TRAIN_DATA_FILEPATH = @"..\..\..\..\..\data\HotelBookings.tsv";
+        private static string MODEL_FILEPATH = @"..\..\..\MLModel.zip";
         // Create MLContext to be shared across the model creation workflow objects 
         // Set a random seed for repeatable/deterministic results across multiple trainings.
         private static MLContext mlContext = new MLContext(seed: 1);
+
+        private static uint ExperimentTime = 60;
+        private static string MODEL_FILEPATH2 = @"..\..\..\MLModel2.zip";
 
         public static void CreateModel()
         {
@@ -40,6 +44,44 @@ namespace ConsoleAppML2ML.ConsoleApp
 
             // Save model
             SaveModel(mlContext, mlModel, MODEL_FILEPATH, trainingDataView.Schema);
+        }
+
+        public static void CreateExperiment()
+        {
+            // Load Data
+            var tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
+            IDataView trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
+                                            path: tmpPath,
+                                            hasHeader: true,
+                                            separatorChar: '\t',
+                                            allowQuoting: true,
+                                            allowSparse: false);
+
+            IDataView testDataView = mlContext.Data.BootstrapSample(trainingDataView);
+
+            // STEP 2: Run AutoML experiment
+            Console.WriteLine($"Running AutoML Multiclass classification experiment for {ExperimentTime} seconds...");
+            ExperimentResult<MulticlassClassificationMetrics> experimentResult = mlContext.Auto()
+                .CreateMulticlassClassificationExperiment(ExperimentTime)
+                .Execute(trainingDataView, labelColumnName: "reservation_status");
+
+            // STEP 3: Print metric from the best model
+            RunDetail<MulticlassClassificationMetrics> bestRun = experimentResult.BestRun;
+            Console.WriteLine($"Total models produced: {experimentResult.RunDetails.Count()}");
+            Console.WriteLine($"Best model's trainer: {bestRun.TrainerName}");
+            Console.WriteLine($"Metrics of best model from validation data --");
+            PrintMulticlassClassificationMetrics(bestRun.ValidationMetrics);
+
+            // STEP 4: Evaluate test data
+            IDataView testDataViewWithBestScore = bestRun.Model.Transform(testDataView);
+            var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
+            Console.WriteLine($"Metrics of best model on test data --");
+            PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
+
+            // Load Data
+            tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
+            // Save model
+            SaveModel(mlContext, bestRun.Model, tmpPath, trainingDataView.Schema);
         }
 
         public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext)
@@ -88,6 +130,8 @@ namespace ConsoleAppML2ML.ConsoleApp
         {
             FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
             string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
 
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
 
@@ -157,5 +201,6 @@ namespace ConsoleAppML2ML.ConsoleApp
             double confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
             return confidenceInterval95;
         }
+
     }
 }

@@ -31,22 +31,7 @@ namespace WebApplicationML4ML.Model
             return result;
         }
 
-        public static ModelOutput PredictPool(ModelInput input)
-        {
-
-            // Create new MLContext
-            MLContext mlContext = new MLContext();
-
-            // Load model & create prediction engine
-            string modelPath = GetAbsolutePath("MLModel.zip");
-            ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
-            var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
-
-            // Use model to make prediction on input data
-            ModelOutput result = predEngine.Predict(input);
-            return result;
-        }
-
+        
         public static string GetAbsolutePath(string relativePath)
         {
             FileInfo _dataRoot = new FileInfo(typeof(ConsumeModel).Assembly.Location);

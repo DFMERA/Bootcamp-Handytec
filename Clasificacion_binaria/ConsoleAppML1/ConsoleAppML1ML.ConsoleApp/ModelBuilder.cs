@@ -7,22 +7,27 @@ using System.Linq;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using ConsoleAppML1ML.Model;
+using Microsoft.ML.AutoML;
 
 namespace ConsoleAppML1ML.ConsoleApp
 {
     public static class ModelBuilder
     {
-        private static string TRAIN_DATA_FILEPATH = @"C:\repos\Curso ML\Clasificacion_binaria\data\wikipedia-detox-250-line-data-2.tsv";
-        private static string MODEL_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\ConsoleAppML1ML\ConsoleAppML1ML.Model\MLModel.zip";
+        private static string TRAIN_DATA_FILEPATH = @"..\..\..\..\..\data\wikipedia-detox-250-line-data-2.tsv";
+        private static string MODEL_FILEPATH = @"..\..\..\MLModel.zip";
         // Create MLContext to be shared across the model creation workflow objects 
         // Set a random seed for repeatable/deterministic results across multiple trainings.
         private static MLContext mlContext = new MLContext(seed: 1);
 
+        private static uint ExperimentTime = 60;
+        private static string MODEL_FILEPATH2 = @"..\..\..\MLModel2.zip";
+
         public static void CreateModel()
         {
+            var tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
             // Load Data
             IDataView trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
-                                            path: TRAIN_DATA_FILEPATH,
+                                            path: tmpPath,
                                             hasHeader: true,
                                             separatorChar: '\t',
                                             allowQuoting: true,
@@ -37,8 +42,46 @@ namespace ConsoleAppML1ML.ConsoleApp
             // Train Model
             ITransformer mlModel = TrainModel(mlContext, trainingDataView, trainingPipeline);
 
+            tmpPath = GetAbsolutePath(MODEL_FILEPATH);
             // Save model
-            SaveModel(mlContext, mlModel, MODEL_FILEPATH, trainingDataView.Schema);
+            SaveModel(mlContext, mlModel, tmpPath, trainingDataView.Schema);
+        }
+
+        public static void CreateExperiment()
+        {
+            var tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
+            // Load Data
+            IDataView trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
+                                            path: tmpPath,
+                                            hasHeader: true,
+                                            separatorChar: '\t',
+                                            allowQuoting: true,
+                                            allowSparse: false);
+
+            IDataView testDataView = mlContext.Data.BootstrapSample(trainingDataView);
+
+            // STEP 2: Run AutoML experiment
+            Console.WriteLine($"Running AutoML binary classification experiment for {ExperimentTime} seconds...");
+            ExperimentResult<BinaryClassificationMetrics> experimentResult = mlContext.Auto()
+                .CreateBinaryClassificationExperiment(ExperimentTime)
+                .Execute(trainingDataView, labelColumnName: "Sentiment");
+
+            // STEP 3: Print metric from the best model
+            RunDetail<BinaryClassificationMetrics> bestRun = experimentResult.BestRun;
+            Console.WriteLine($"Total models produced: {experimentResult.RunDetails.Count()}");
+            Console.WriteLine($"Best model's trainer: {bestRun.TrainerName}");
+            Console.WriteLine($"Metrics of best model from validation data --");
+            PrintMetrics(bestRun.ValidationMetrics);
+
+            // STEP 4: Evaluate test data
+            IDataView testDataViewWithBestScore = bestRun.Model.Transform(testDataView);
+            BinaryClassificationMetrics testMetrics = mlContext.BinaryClassification.EvaluateNonCalibrated(testDataViewWithBestScore, labelColumnName: "Sentiment");
+            Console.WriteLine($"Metrics of best model on test data --");
+            PrintMetrics(testMetrics);
+
+            tmpPath = GetAbsolutePath(MODEL_FILEPATH2);
+            // Save model
+            SaveModel(mlContext, bestRun.Model, tmpPath, trainingDataView.Schema);
         }
 
         public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext)
@@ -88,6 +131,8 @@ namespace ConsoleAppML1ML.ConsoleApp
             FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
             string assemblyFolderPath = _dataRoot.Directory.FullName;
 
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
 
             return fullPath;
@@ -133,6 +178,18 @@ namespace ConsoleAppML1ML.ConsoleApp
         {
             double confidenceInterval95 = 1.96 * CalculateStandardDeviation(values) / Math.Sqrt((values.Count() - 1));
             return confidenceInterval95;
+        }
+
+        private static void PrintMetrics(BinaryClassificationMetrics metrics)
+        {
+            Console.WriteLine($"Accuracy: {metrics.Accuracy}");
+            Console.WriteLine($"AreaUnderPrecisionRecallCurve: {metrics.AreaUnderPrecisionRecallCurve}");
+            Console.WriteLine($"AreaUnderRocCurve: {metrics.AreaUnderRocCurve}");
+            Console.WriteLine($"F1Score: {metrics.F1Score}");
+            Console.WriteLine($"NegativePrecision: {metrics.NegativePrecision}");
+            Console.WriteLine($"NegativeRecall: {metrics.NegativeRecall}");
+            Console.WriteLine($"PositivePrecision: {metrics.PositivePrecision}");
+            Console.WriteLine($"PositiveRecall: {metrics.PositiveRecall}");
         }
     }
 }

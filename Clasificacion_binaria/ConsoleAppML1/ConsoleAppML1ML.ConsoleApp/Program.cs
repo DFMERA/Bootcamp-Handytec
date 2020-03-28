@@ -11,12 +11,16 @@ namespace ConsoleAppML1ML.ConsoleApp
     class Program
     {
         //Dataset to use for predictions 
-        private const string DATA_FILEPATH = @"C:\repos\Curso ML\Clasificacion_binaria\data\wikipedia-detox-250-line-data-2.tsv";
+        private const string DATA_FILEPATH = @"..\..\..\..\..\data\wikipedia-detox-250-line-data-2.tsv";
 
         static void Main(string[] args)
         {
+
+            //ModelBuilder.CreateExperiment();
+
             // Create single instance of sample data from first line of dataset for model input
-            ModelInput sampleData = CreateSingleDataSample(DATA_FILEPATH);
+            var tmpPath = ModelBuilder.GetAbsolutePath(DATA_FILEPATH);
+            ModelInput sampleData = CreateSingleDataSample(tmpPath);
 
             // Make a single prediction on the sample data and print results
             var predictionResult = ConsumeModel.Predict(sampleData);

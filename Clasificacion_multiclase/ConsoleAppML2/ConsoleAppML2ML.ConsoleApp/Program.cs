@@ -11,7 +11,7 @@ namespace ConsoleAppML2ML.ConsoleApp
     class Program
     {
         //Dataset to use for predictions 
-        private const string DATA_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\dce07e88-0d79-4962-9f6e-763543cc4d28.tsv";
+        private const string DATA_FILEPATH = @"..\..\..\..\..\data\HotelBookings.tsv";
 
         static void Main(string[] args)
         {

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.ML;
 using ConsoleAppML1ML.Model;
+using System.IO;
 
 namespace ConsoleAppML1ML.Model
 {
@@ -20,13 +21,25 @@ namespace ConsoleAppML1ML.Model
             MLContext mlContext = new MLContext();
 
             // Load model & create prediction engine
-            string modelPath = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\ConsoleAppML1ML\ConsoleAppML1ML.Model\MLModel.zip";
+            string modelPath = GetAbsolutePath(@"MLModel.zip");
             ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
 
             // Use model to make prediction on input data
             ModelOutput result = predEngine.Predict(input);
             return result;
+        }
+
+        public static string GetAbsolutePath(string relativePath)
+        {
+            FileInfo _dataRoot = new FileInfo(typeof(ConsumeModel).Assembly.Location);
+            string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+
+            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+
+            return fullPath;
         }
     }
 }
