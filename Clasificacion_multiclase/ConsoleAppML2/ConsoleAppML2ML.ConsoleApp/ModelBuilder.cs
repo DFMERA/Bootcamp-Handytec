@@ -9,6 +9,7 @@ using Microsoft.ML.Data;
 using ConsoleAppML2ML.Model;
 using Microsoft.ML.Trainers.LightGbm;
 using Microsoft.ML.AutoML;
+using System.Data.SqlClient;
 
 namespace ConsoleAppML2ML.ConsoleApp
 {
@@ -16,6 +17,9 @@ namespace ConsoleAppML2ML.ConsoleApp
     {
         private static string TRAIN_DATA_FILEPATH = @"..\..\..\..\..\data\HotelBookings.tsv";
         private static string MODEL_FILEPATH = @"..\..\..\MLModel.zip";
+        private static string CONNECTION_STRING = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=<YOUR-DB-FILEPATH>;Database=<YOUR-DB-NAME>;Integrated Security=True;Connect Timeout=30";
+        private static string SQL_COMMAND = "SELECT * FROM HotelBookings";
+
         // Create MLContext to be shared across the model creation workflow objects 
         // Set a random seed for repeatable/deterministic results across multiple trainings.
         private static MLContext mlContext = new MLContext(seed: 1);
@@ -26,24 +30,20 @@ namespace ConsoleAppML2ML.ConsoleApp
         public static void CreateModel()
         {
             // Load Data
-            IDataView trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
-                                            path: TRAIN_DATA_FILEPATH,
-                                            hasHeader: true,
-                                            separatorChar: '\t',
-                                            allowQuoting: true,
-                                            allowSparse: false);
+            IDataView trainingDataView = LoadDataView("textFile");
 
             // Build training pipeline
             IEstimator<ITransformer> trainingPipeline = BuildTrainingPipeline(mlContext);
 
-            // Evaluate quality of Model
-            Evaluate(mlContext, trainingDataView, trainingPipeline);
-
             // Train Model
             ITransformer mlModel = TrainModel(mlContext, trainingDataView, trainingPipeline);
 
+            // Evaluate quality of Model
+            //Evaluate(mlContext, trainingDataView, trainingPipeline);
+
             // Save model
-            SaveModel(mlContext, mlModel, MODEL_FILEPATH, trainingDataView.Schema);
+            var tmpPath = GetAbsolutePath(MODEL_FILEPATH);
+            SaveModel(mlContext, mlModel, tmpPath, trainingDataView.Schema);
         }
 
         public static void CreateExperiment()
@@ -74,14 +74,49 @@ namespace ConsoleAppML2ML.ConsoleApp
 
             // STEP 4: Evaluate test data
             IDataView testDataViewWithBestScore = bestRun.Model.Transform(testDataView);
-            var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
+            //var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
             Console.WriteLine($"Metrics of best model on test data --");
-            PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
+            //PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
 
-            // Load Data
-            tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
             // Save model
+            tmpPath = GetAbsolutePath(MODEL_FILEPATH2);
             SaveModel(mlContext, bestRun.Model, tmpPath, trainingDataView.Schema);
+        }
+
+        private static IDataView LoadDataView(string source)
+        {
+            var tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
+            IDataView trainingDataView;
+
+            if (source == "textFile")
+            {
+                trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
+                                            path: tmpPath,
+                                            hasHeader: true,
+                                            separatorChar: '\t',
+                                            allowQuoting: true,
+                                            allowSparse: false);
+            }
+            else if (source == "SQL")
+            {
+                DatabaseLoader loader = mlContext.Data.CreateDatabaseLoader<ModelInput>();
+                DatabaseSource dbSource = new DatabaseSource(SqlClientFactory.Instance, CONNECTION_STRING, SQL_COMMAND);
+                trainingDataView = loader.Load(dbSource);
+            }
+            else
+            {
+                ModelInput[] inMemoryCollection = new ModelInput[]
+                {
+                    new ModelInput()
+                    {
+                        Lead_time = 0,
+                        //To Do: Instanciar el objeto
+                    }
+                };
+                trainingDataView = mlContext.Data.LoadFromEnumerable<ModelInput>(inMemoryCollection);
+            }
+
+            return trainingDataView;
         }
 
         public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext)
@@ -90,8 +125,8 @@ namespace ConsoleAppML2ML.ConsoleApp
             var dataProcessPipeline = mlContext.Transforms.Conversion.MapValueToKey("reservation_status", "reservation_status")
                                       .Append(mlContext.Transforms.Categorical.OneHotEncoding(new[] { new InputOutputColumnPair("hotel", "hotel"), new InputOutputColumnPair("arrival_date_month", "arrival_date_month"), new InputOutputColumnPair("meal", "meal"), new InputOutputColumnPair("country", "country"), new InputOutputColumnPair("market_segment", "market_segment"), new InputOutputColumnPair("distribution_channel", "distribution_channel"), new InputOutputColumnPair("reserved_room_type", "reserved_room_type"), new InputOutputColumnPair("assigned_room_type", "assigned_room_type"), new InputOutputColumnPair("deposit_type", "deposit_type"), new InputOutputColumnPair("agent", "agent"), new InputOutputColumnPair("customer_type", "customer_type") }))
                                       .Append(mlContext.Transforms.Concatenate("Features", new[] { "hotel", "arrival_date_month", "meal", "country", "market_segment", "distribution_channel", "reserved_room_type", "assigned_room_type", "deposit_type", "agent", "customer_type", "lead_time", "arrival_date_week_number", "arrival_date_day_of_month", "stays_in_weekend_nights", "stays_in_week_nights", "adults", "children", "babies", "is_repeated_guest", "previous_cancellations", "previous_bookings_not_canceled", "booking_changes", "days_in_waiting_list", "adr", "required_car_parking_spaces", "total_of_special_requests" }));
-            // Set the training algorithm 
-            var trainer = mlContext.MulticlassClassification.Trainers.LightGbm(new LightGbmMulticlassTrainer.Options() { NumberOfIterations = 200, LearningRate = 0.2938725f, NumberOfLeaves = 60, MinimumExampleCountPerLeaf = 10, UseCategoricalSplit = true, HandleMissingValue = false, UseZeroAsMissingValue = false, MinimumExampleCountPerGroup = 10, MaximumCategoricalSplitPointCount = 32, CategoricalSmoothing = 20, L2CategoricalRegularization = 0.5, UseSoftmax = false, Booster = new GradientBooster.Options() { L2Regularization = 0.5, L1Regularization = 1 }, LabelColumnName = "reservation_status", FeatureColumnName = "Features" })
+            // Set the training algorithm
+            var trainer = mlContext.MulticlassClassification.Trainers.LightGbm(new LightGbmMulticlassTrainer.Options() { NumberOfIterations = 200, LearningRate = 0.2938725f, NumberOfLeaves = 60, MinimumExampleCountPerLeaf = 10, UseCategoricalSplit = true, HandleMissingValue = false, MinimumExampleCountPerGroup = 10, MaximumCategoricalSplitPointCount = 32, CategoricalSmoothing = 20, L2CategoricalRegularization = 0.5, UseSoftmax = false, Booster = new GradientBooster.Options() { L2Regularization = 0.5, L1Regularization = 1 }, LabelColumnName = "reservation_status", FeatureColumnName = "Features" })
                                       .Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel", "PredictedLabel"));
 
             var trainingPipeline = dataProcessPipeline.Append(trainer);

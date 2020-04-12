@@ -15,6 +15,10 @@ namespace ConsoleAppML2ML.ConsoleApp
 
         static void Main(string[] args)
         {
+            //
+            //ModelBuilder.CreateModel();
+            //ModelBuilder.CreateExperiment();
+
             // Create single instance of sample data from first line of dataset for model input
             ModelInput sampleData = CreateSingleDataSample(DATA_FILEPATH);
 
@@ -68,8 +72,9 @@ namespace ConsoleAppML2ML.ConsoleApp
             MLContext mlContext = new MLContext();
 
             // Load dataset
+            var tmpPath = ModelBuilder.GetAbsolutePath(dataFilePath);
             IDataView dataView = mlContext.Data.LoadFromTextFile<ModelInput>(
-                                            path: dataFilePath,
+                                            path: tmpPath,
                                             hasHeader: true,
                                             separatorChar: '\t',
                                             allowQuoting: true,

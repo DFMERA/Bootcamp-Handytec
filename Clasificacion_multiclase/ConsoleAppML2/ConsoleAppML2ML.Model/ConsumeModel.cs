@@ -20,7 +20,7 @@ namespace ConsoleAppML2ML.Model
             MLContext mlContext = new MLContext();
 
             // Load model & create prediction engine
-            string modelPath = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\ConsoleAppML2ML\ConsoleAppML2ML.Model\MLModel.zip";
+            string modelPath = @"MLModel.zip";
             ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
 
