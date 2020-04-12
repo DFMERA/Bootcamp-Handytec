@@ -39,7 +39,7 @@ namespace ConsoleAppML2ML.ConsoleApp
             ITransformer mlModel = TrainModel(mlContext, trainingDataView, trainingPipeline);
 
             // Evaluate quality of Model
-            //Evaluate(mlContext, trainingDataView, trainingPipeline);
+            Evaluate(mlContext, trainingDataView, trainingPipeline);
 
             // Save model
             var tmpPath = GetAbsolutePath(MODEL_FILEPATH);
@@ -74,9 +74,9 @@ namespace ConsoleAppML2ML.ConsoleApp
 
             // STEP 4: Evaluate test data
             IDataView testDataViewWithBestScore = bestRun.Model.Transform(testDataView);
-            //var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
+            var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
             Console.WriteLine($"Metrics of best model on test data --");
-            //PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
+            PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
 
             // Save model
             tmpPath = GetAbsolutePath(MODEL_FILEPATH2);
