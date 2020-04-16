@@ -13,8 +13,8 @@ namespace WebApplicationML3ML.ConsoleApp
 {
     public static class ModelBuilder
     {
-        private static string TRAIN_DATA_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\c95a938d-2953-4237-8631-3c818b32f0ab.tsv";
-        private static string MODEL_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\WebApplicationML3ML\WebApplicationML3ML.Model\MLModel.zip";
+        private static string TRAIN_DATA_FILEPATH = @"..\..\..\..\..\Data\HotelBookingsRate.tsv";
+        private static string MODEL_FILEPATH = @"..\..\..\MLModel.zip";
         // Create MLContext to be shared across the model creation workflow objects 
         // Set a random seed for repeatable/deterministic results across multiple trainings.
         private static MLContext mlContext = new MLContext(seed: 1);
@@ -22,8 +22,9 @@ namespace WebApplicationML3ML.ConsoleApp
         public static void CreateModel()
         {
             // Load Data
+            var tmpPath = GetAbsolutePath(TRAIN_DATA_FILEPATH);
             IDataView trainingDataView = mlContext.Data.LoadFromTextFile<ModelInput>(
-                                            path: TRAIN_DATA_FILEPATH,
+                                            path: tmpPath,
                                             hasHeader: true,
                                             separatorChar: '\t',
                                             allowQuoting: true,
@@ -39,7 +40,8 @@ namespace WebApplicationML3ML.ConsoleApp
             ITransformer mlModel = TrainModel(mlContext, trainingDataView, trainingPipeline);
 
             // Save model
-            SaveModel(mlContext, mlModel, MODEL_FILEPATH, trainingDataView.Schema);
+            tmpPath = GetAbsolutePath(MODEL_FILEPATH);
+            SaveModel(mlContext, mlModel, tmpPath, trainingDataView.Schema);
         }
 
         public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext)
@@ -86,6 +88,8 @@ namespace WebApplicationML3ML.ConsoleApp
         {
             FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
             string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
 
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
 

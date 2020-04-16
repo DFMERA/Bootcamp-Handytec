@@ -11,12 +11,13 @@ namespace WebApplicationML3ML.ConsoleApp
     class Program
     {
         //Dataset to use for predictions 
-        private const string DATA_FILEPATH = @"C:\Users\dfmera\AppData\Local\Temp\c95a938d-2953-4237-8631-3c818b32f0ab.tsv";
+        private const string DATA_FILEPATH = @"..\..\..\..\..\Data\HotelBookingsRate.tsv";
 
         static void Main(string[] args)
         {
             // Create single instance of sample data from first line of dataset for model input
-            ModelInput sampleData = CreateSingleDataSample(DATA_FILEPATH);
+            var tmpPath = ModelBuilder.GetAbsolutePath(DATA_FILEPATH);
+            ModelInput sampleData = CreateSingleDataSample(tmpPath);
 
             // Make a single prediction on the sample data and print results
             var predictionResult = ConsumeModel.Predict(sampleData);

@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using Microsoft.ML;
 using WebApplicationML3ML.Model;
+using System.IO;
+
 
 namespace WebApplicationML3ML.Model
 {
@@ -20,13 +22,26 @@ namespace WebApplicationML3ML.Model
             MLContext mlContext = new MLContext();
 
             // Load model & create prediction engine
-            string modelPath = @"C:\Users\dfmera\AppData\Local\Temp\MLVSTools\WebApplicationML3ML\WebApplicationML3ML.Model\MLModel.zip";
-            ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
+            string modelPath = @"MLModel.zip";
+            var tmpPath = GetAbsolutePath(modelPath);
+            ITransformer mlModel = mlContext.Model.Load(tmpPath, out var modelInputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
 
             // Use model to make prediction on input data
             ModelOutput result = predEngine.Predict(input);
             return result;
+        }
+
+        public static string GetAbsolutePath(string relativePath)
+        {
+            FileInfo _dataRoot = new FileInfo(typeof(ConsumeModel).Assembly.Location);
+            string assemblyFolderPath = _dataRoot.Directory.FullName;
+
+            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+
+            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+
+            return fullPath;
         }
     }
 }
