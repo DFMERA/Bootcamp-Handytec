@@ -24,7 +24,7 @@ namespace ConsoleAppML2ML.ConsoleApp
         // Set a random seed for repeatable/deterministic results across multiple trainings.
         private static MLContext mlContext = new MLContext(seed: 1);
 
-        private static uint ExperimentTime = 60;
+        private static uint ExperimentTime = 120;
         private static string MODEL_FILEPATH2 = @"..\..\..\MLModel2.zip";
 
         public static void CreateModel()
@@ -61,9 +61,12 @@ namespace ConsoleAppML2ML.ConsoleApp
 
             // STEP 2: Run AutoML experiment
             Console.WriteLine($"Running AutoML Multiclass classification experiment for {ExperimentTime} seconds...");
-            ExperimentResult<MulticlassClassificationMetrics> experimentResult = mlContext.Auto()
-                .CreateMulticlassClassificationExperiment(ExperimentTime)
-                .Execute(trainingDataView, labelColumnName: "reservation_status");
+            //ExperimentResult<MulticlassClassificationMetrics> experimentResult = mlContext.Auto()
+            //    .CreateMulticlassClassificationExperiment(ExperimentTime)
+            //    .Execute(trainingDataView, labelColumnName: "reservation_status");
+            MulticlassClassificationExperiment experiment = mlContext.Auto()
+                .CreateMulticlassClassificationExperiment(ExperimentTime);
+            ExperimentResult<MulticlassClassificationMetrics> experimentResult = experiment.Execute(trainingDataView, labelColumnName: "reservation_status");
 
             // STEP 3: Print metric from the best model
             RunDetail<MulticlassClassificationMetrics> bestRun = experimentResult.BestRun;
@@ -74,9 +77,17 @@ namespace ConsoleAppML2ML.ConsoleApp
 
             // STEP 4: Evaluate test data
             IDataView testDataViewWithBestScore = bestRun.Model.Transform(testDataView);
-            var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
-            Console.WriteLine($"Metrics of best model on test data --");
-            PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
+            try
+            {
+                var testMetrics = mlContext.MulticlassClassification.CrossValidate(testDataViewWithBestScore, bestRun.Estimator, numberOfFolds: 5, labelColumnName: "reservation_status");
+                Console.WriteLine($"Metrics of best model on test data --");
+                PrintMulticlassClassificationFoldsAverageMetrics(testMetrics);
+            }
+            catch
+            {
+                Console.WriteLine($"Metrics not supported in this version");
+            }
+            
 
             // Save model
             tmpPath = GetAbsolutePath(MODEL_FILEPATH2);
@@ -166,7 +177,8 @@ namespace ConsoleAppML2ML.ConsoleApp
             FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
             string assemblyFolderPath = _dataRoot.Directory.FullName;
 
-            relativePath = relativePath.Replace('\\', Path.VolumeSeparatorChar);
+            char separatorChar = Path.VolumeSeparatorChar == ':' ? '\\' : '/';
+            relativePath = relativePath.Replace('\\', separatorChar);
 
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
 
